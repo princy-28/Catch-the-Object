@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Catch the Falling Object Game</title>
+    <style>
+        body {
+            background-color: #f0f8ff;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        canvas {
+            background-color: #87ceeb;
+            border: 2px solid #000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .score,
+        .instructions,
+        .game-over {
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            width: 100%;
+            color: white;
+            font-size: 20px;
+        }
+        
+        .start-screen h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .start-screen button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .start-screen button:hover {
+            background-color: #45a049;
+        }
+        
+        .game-over {
+            display: none;
+            text-align: center;
+            font-size: 30px;
+            color: red;
+            font-weight: bold;
+        }
+        
+        .game-over button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .game-over button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Start Screen -->
+    <div class="start-screen" id="startScreen">
+        <h1>Catch the Falling Object Game</h1>
+        <p>Instructions:</p>
+        <ul>
+            <li>Use left and right arrow keys to move the basket.</li>
+            <li>Catch the falling objects to earn points.</li>
+            <li>Don't miss too many objects or the game will end!</li>
+        </ul>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="500" height="600"></canvas>
+
+    <!-- Score Display -->
+    <div class="score" id="score">Score: 0</div>
+
+    <!-- Game Over Screen -->
+    <div class="game-over" id="gameOver">
+        <p>Game Over!</p>
+        <p>Your final score is: <span id="finalScore"></span></p>
+        <button onclick="restartGame()">Try Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const basketWidth = 100;
+        const basketHeight = 20;
+        const objectSize = 30;
+        let basketX = (canvas.width - basketWidth) / 2;
+        let basketY = canvas.height - basketHeight;
+        let score = 0;
+        let missedObjects = 0;
+        let fallingObjects = [];
+        let gameInterval;
+        let fallingInterval;
+        let gameRunning = false;
+
+        // Handle basket movement
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "ArrowLeft" && basketX > 0) {
+                basketX -= 20;
+            } else if (event.key === "ArrowRight" && basketX < canvas.width - basketWidth) {
+                basketX += 20;
+            }
+        });
+
+        // Create a falling object
+        function createFallingObject() {
+            const xPos = Math.random() * (canvas.width - objectSize);
+            fallingObjects.push({
+                x: xPos,
+                y: 0
+            });
+        }
+
+        // Update and draw the falling objects
+        function updateFallingObjects() {
+            for (let i = 0; i < fallingObjects.length; i++) {
+                const obj = fallingObjects[i];
+                obj.y += 5;
+
+                // Check if the object hits the basket
+                if (obj.y + objectSize >= basketY && obj.x >= basketX && obj.x <= basketX + basketWidth) {
+                    score++;
+                    fallingObjects.splice(i, 1);
+                    i--;
+                } else if (obj.y + objectSize > canvas.height) {
+                    missedObjects++;
+                    fallingObjects.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        // Draw everything on the canvas
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw basket
+            ctx.fillStyle = "brown";
+            ctx.fillRect(basketX, basketY, basketWidth, basketHeight);
+
+            // Draw falling objects
+            ctx.fillStyle = "red";
+            for (let obj of fallingObjects) {
+                ctx.beginPath();
+                ctx.arc(obj.x + objectSize / 2, obj.y + objectSize / 2, objectSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw score
+            document.getElementById("score").textContent = `Score: ${score}`;
+
+            // Check if game over
+            if (missedObjects >= 3) {
+                gameRunning = false;
+                clearInterval(gameInterval);
+                clearInterval(fallingInterval);
+                document.getElementById("finalScore").textContent = score;
+                document.getElementById("gameOver").style.display = "block";
+                document.getElementById("score").style.display = "none";
+            }
+        }
+
+        // Start the game
+        function startGame() {
+            document.getElementById("startScreen").style.display = "none";
+            document.getElementById("score").style.display = "block";
+            gameRunning = true;
+            score = 0;
+            missedObjects = 0;
+            fallingObjects = [];
+            gameInterval = setInterval(gameLoop, 1000 / 60); // 60 FPS
+            fallingInterval = setInterval(createFallingObject, 2000); // Create object every 2 seconds
+        }
+
+        // Game loop
+        function gameLoop() {
+            updateFallingObjects();
+            drawGame();
+        }
+
+        // Restart the game
+        function restartGame() {
+            document.getElementById("gameOver").style.display = "none";
+            startGame();
+        }
+    </script>
+</body>
+
+</html>
